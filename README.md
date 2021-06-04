@@ -5,5 +5,5 @@ This is an experimental repo used to test the viability of static Ansible docs g
 ## Usage
 
 ```sh
-ansible-specdoc [-h] [-s] [-n MODULE_NAME] [-i INPUT_FILE] [-o OUTPUT_FILE] [-f {yaml,json}]
+ansible_specdoc [-h] [-s] [-n MODULE_NAME] [-i INPUT_FILE] [-o OUTPUT_FILE] [-f {yaml,json}]
 ```
