@@ -22,22 +22,24 @@ class SpecDocModule:
         with open(file, 'r') as f:
             tree = ast.parse(f.read())
 
-        assign_op = self._get_var_assignment(tree, 'specdoc_meta')
-        if assign_op is None:
-            raise Exception('failed to parse module file {0}: specdoc_meta is not defined'.format(self._module_file))
-
-        self._metadata = self._eval_dict(tree, assign_op.value)
+        self._metadata = self._eval_dict(tree, self._get_root_dict(tree))
 
     def load_str(self, module_name: str, content: str) -> None:
         self._module_name = module_name
 
         tree = ast.parse(content)
 
+        self._metadata = self._eval_dict(tree, self._get_root_dict(tree))
+
+    def _get_root_dict(self, tree: ast.AST) -> ast.Dict:
         assign_op = self._get_var_assignment(tree, 'specdoc_meta')
         if assign_op is None:
-            raise Exception('failed to parse module string {0}: specdoc_meta is not defined'.format(self._module_file))
+            raise Exception('failed to parse module file {0}: specdoc_meta is not defined'.format(self._module_file))
 
-        self._metadata = self._eval_dict(tree, assign_op.value)
+        if not isinstance(assign_op.value, ast.Dict):
+            raise Exception('only python 3 style dict literals are supported at this time')
+
+        return assign_op.value
 
     def _eval_dict(self, root: ast.AST, node: ast.Dict) -> Dict[str, Any]:
         result = {}
@@ -63,11 +65,18 @@ class SpecDocModule:
 
             return self._eval_val(root, assign_op.value)
 
+        if isinstance(node, ast.Call):
+            raise Exception('calls are unsupported at this time')
+
         return ast.literal_eval(node)
 
     def _get_var_assignment(self, tree: ast.AST, var_name: str) -> Optional[ast.Assign]:
+        print(var_name)
         for node in ast.walk(tree):
-            if isinstance(node, ast.Assign) and node.targets[0].id == var_name:
+            print(node)
+            if isinstance(node, ast.Assign) and \
+                    isinstance(node.targets[0], ast.Name) and \
+                    node.targets[0].id == var_name:
                 return node
 
         return None
