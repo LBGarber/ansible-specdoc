@@ -2,13 +2,19 @@ import importlib.util
 import importlib.machinery
 import json
 import os
+import warnings
+
 import yaml
 import importlib
 import argparse
+import pathlib
 import sys
 
 from types import ModuleType
 from typing import Optional, Dict, Any
+
+
+SPECDOC_META_VAR = 'specdoc_meta'
 
 
 class SpecDocModule:
@@ -21,30 +27,30 @@ class SpecDocModule:
 
         self._metadata: Dict[str, Any] = {}
 
-    def load_file(self, file: str) -> None:
-        self._module_name = os.path.splitext(os.path.basename(file))[0]
+    def load_file(self, file: str, module_name: str = None) -> None:
+        self._module_name = module_name or os.path.splitext(os.path.basename(file))[0]
         self._module_file = file
 
         self._module_spec = importlib.util.spec_from_file_location(self._module_name, self._module_file)
         self._module = importlib.util.module_from_spec(self._module_spec)
         self._module_spec.loader.exec_module(self._module)
 
-        if not hasattr(self._module, 'specdoc_meta'):
+        if not hasattr(self._module, SPECDOC_META_VAR):
             raise Exception('failed to parse module file {0}: specdoc_meta is not defined'.format(self._module_file))
 
-        self._metadata = getattr(self._module, 'specdoc_meta')
+        self._metadata = getattr(self._module, SPECDOC_META_VAR)
 
-    def load_str(self, module_name: str, content: str) -> None:
+    def load_str(self, content: str, module_name: str) -> None:
         self._module_name = module_name
 
         self._module_spec = importlib.util.spec_from_loader(self._module_name, loader=None)
         self._module = importlib.util.module_from_spec(self._module_spec)
         exec(content, self._module.__dict__)
 
-        if not hasattr(self._module, 'specdoc_meta'):
+        if not hasattr(self._module, SPECDOC_META_VAR):
             raise Exception('failed to parse module string {0}: specdoc_meta is not defined'.format(self._module_name))
 
-        self._metadata = getattr(self._module, 'specdoc_meta')
+        self._metadata = getattr(self._module, SPECDOC_META_VAR)
 
     @staticmethod
     def _spec_to_doc(spec: Dict[str, Dict]) -> Dict[str, Any]:
@@ -86,12 +92,36 @@ class SpecDocModule:
         return yaml.dump(self._generate_doc_dict())
 
     def generate_json(self) -> str:
-        return json.dump(self._generate_doc_dict())
+        return json.dumps(self._generate_doc_dict())
+
+
+def get_ansible_root(base_dir: str) -> Optional[str]:
+    path = pathlib.Path(base_dir)
+
+    # Ensure path is a directory
+    if not path.is_dir():
+        path = path.parent
+
+    # Check if ansible_collections is contained in base directory
+    if 'ansible_collections' in os.listdir(str(path)):
+        return str(path.absolute())
+
+    # Check if base directory is a child of ansible_collections
+    while path.name != 'ansible_collections':
+        if path.name == '':
+            return None
+
+        path = path.parent
+
+    return str(path.parent.absolute())
+
 
 def main():
     parser = argparse.ArgumentParser(description='Generate Ansible Module documentation from spec.')
 
     parser.add_argument('-s', '--stdin', help='Read the module from stdin.', action='store_true')
+    parser.add_argument('-n', '--module-name', type=str, help='The name of the module (required for stdin)')
+
     parser.add_argument('-i', '--input_file', type=str, help='The module to generate documentation from.')
     parser.add_argument('-o', '--output_file', type=str, help='The file to output the documentation to.')
     parser.add_argument('-f', '--output_format', type=str, default='yaml', choices=['yaml', 'json'], help='The output format of the documentation.')
@@ -99,13 +129,31 @@ def main():
 
     mod = SpecDocModule()
 
+    # Add the Ansible collection directory to the path
+    target_path = os.getcwd()
+    if args.input_file is not None:
+        target_path = str(pathlib.Path(args.input_file).absolute())
+
+    ansible_root = get_ansible_root(target_path)
+
+    if ansible_root is not None:
+        sys.path.append(ansible_root)
+    else:
+        print('WARNING: The current directory is not at or below an Ansible collection: {...}/ansible_collections/{'
+              'namespace}/{collection}/')
+
+    # Load the module
     if args.stdin:
-        mod.load_str('my-module', '\n'.join(sys.stdin))
+        if not args.module_name:
+            parser.error('Module name must be specified for stdin input.')
+
+        mod.load_str('\n'.join(sys.stdin), args.module_name)
     elif args.input_file is not None:
-        mod.load_file(args.input_file)
+        mod.load_file(args.input_file, args.module_name)
     else:
         parser.error('No input source specified.')
 
+    # Generate the output in the correct format
     output = ''
     if args.output_format == 'yaml':
         output = mod.generate_yaml()
@@ -119,6 +167,7 @@ def main():
             f.write(output)
     else:
         sys.stdout.write(output)
+
 
 if __name__ == '__main__':
     main()
