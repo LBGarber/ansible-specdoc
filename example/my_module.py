@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 my_module_dict_spec = {
     'my-int': {
         'type': 'int',
