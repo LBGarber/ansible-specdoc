@@ -11,6 +11,7 @@ import sys
 from types import ModuleType
 from typing import Optional, Dict, Any
 
+import jinja2
 import yaml
 
 SPECDOC_META_VAR = 'specdoc_meta'
@@ -104,6 +105,16 @@ class SpecDocModule:
         """Generates a JSON documentation string"""
         return json.dumps(self.__generate_doc_dict())
 
+    def generate_jinja2(self, tmpl_str: str) -> str:
+        """Generates a text output from the given Jinja2 template"""
+        env = jinja2.Environment(
+            trim_blocks=True
+        )
+
+        template = env.from_string(tmpl_str)
+
+        return template.render(self.__generate_doc_dict())
+
 
 def get_ansible_root(base_dir: str) -> Optional[str]:
     """Gets the Ansible root directory for correctly importing Ansible collections"""
@@ -143,8 +154,13 @@ def main():
     parser.add_argument('-o', '--output_file',
                         type=str, help='The file to output the documentation to.')
     parser.add_argument('-f', '--output_format',
-                        type=str, default='yaml', choices=['yaml', 'json'],
+                        type=str, default='yaml', choices=['yaml', 'json', 'jinja2'],
                         help='The output format of the documentation.')
+
+    parser.add_argument('-t', '--template_file',
+                        type=str,
+                        help='The file to use as the template for templated formats.')
+
     args, _ = parser.parse_known_args()
 
     mod = SpecDocModule()
@@ -180,6 +196,14 @@ def main():
         output = mod.generate_yaml()
     elif args.output_format == 'json':
         output = mod.generate_json()
+    elif args.output_format == 'jinja2':
+        if not args.template_file:
+            parser.error('A template file must be specified for format Jinja2')
+
+        with open(args.template_file) as file:
+            template_str = file.read()
+
+        output = mod.generate_jinja2(template_str)
     else:
         parser.error('Invalid format specified.')
 

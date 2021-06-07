@@ -1,4 +1,4 @@
 [MASTER]
 
 [MESSAGES CONTROL]
-disable=exec-used
+disable=exec-used, too-many-branches

@@ -12,7 +12,8 @@ setuptools.setup(
     url="http://packages.python.org/ansible-specdoc",
     packages=['ansible_specdoc'],
     install_requires=[
-        'PyYAML==5.4.1'
+        'PyYAML==5.4.1',
+        'Jinja2==3.0.1'
     ],
     python_requires='>=3.6',
     long_description=open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
