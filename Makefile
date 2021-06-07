@@ -2,6 +2,6 @@ test:
 	pytest
 
 lint:
-    pylint
+	pylint
 
-.PHONY: test
+.PHONY: lint test
