@@ -1,3 +1,5 @@
+"""Module for testing docs generation functionality"""
+
 my_module_dict_spec = {
     'my-int': {
         'type': 'int',

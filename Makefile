@@ -2,6 +2,6 @@ test:
 	pytest
 
 lint:
-	pylint
+	pylint ./tests ./ansible_specdoc
 
 .PHONY: lint test
