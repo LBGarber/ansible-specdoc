@@ -1,11 +1,9 @@
 import unittest
-from typing import Dict, Any, Optional
 
-import yaml
-import json
+from ansible_specdoc.cli import *
+from tests.test_modules import *
 
-from cli import SpecDocModule
-from test_modules import module_1
+test_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_modules')
 
 
 class TestDocs(unittest.TestCase):
@@ -30,14 +28,14 @@ class TestDocs(unittest.TestCase):
     def test_docs_yaml_module_override(self):
         m = SpecDocModule()
 
-        m.load_file('test_modules/module_1.py', 'really_cool_mod')
+        m.load_file(os.path.join(test_dir, 'module_1.py'), 'really_cool_mod')
 
         assert yaml.safe_load(m.generate_yaml()).get('module') == 'really_cool_mod'
 
     def test_docs_file_yaml(self):
         m = SpecDocModule()
 
-        m.load_file('test_modules/module_1.py')
+        m.load_file(os.path.join(test_dir, 'module_1.py'))
 
         output_yaml = yaml.safe_load(m.generate_yaml())
 
@@ -48,7 +46,7 @@ class TestDocs(unittest.TestCase):
     def test_docs_file_json(self):
         m = SpecDocModule()
 
-        m.load_file('test_modules/module_1.py')
+        m.load_file(os.path.join(test_dir, 'module_1.py'))
 
         output_json = json.loads(m.generate_json())
 
