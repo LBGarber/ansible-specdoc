@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any
 
 import jinja2
 import yaml
+from redbaron import RedBaron
 
 SPECDOC_META_VAR = 'specdoc_meta'
 
@@ -23,6 +24,7 @@ class SpecDocModule:
     def __init__(self) -> None:
         self._module_file: Optional[str] = None
         self._module_name: str = ''
+        self._module_str: str = ''
 
         self._module_spec: Optional[importlib.machinery.ModuleSpec] = None
         self._module: Optional[ModuleType] = None
@@ -34,6 +36,8 @@ class SpecDocModule:
 
         self._module_name = module_name or os.path.splitext(os.path.basename(file))[0]
         self._module_file = file
+        with open(file, 'r') as module_file:
+            self._module_str = module_file.read()
 
         self._module_spec = importlib.util.spec_from_file_location(
             self._module_name, self._module_file)
@@ -53,6 +57,8 @@ class SpecDocModule:
 
         self._module_spec = importlib.util.spec_from_loader(self._module_name, loader=None)
         self._module = importlib.util.module_from_spec(self._module_spec)
+        self._module_str = content
+
         exec(content, self._module.__dict__)
 
         if not hasattr(self._module, SPECDOC_META_VAR):
@@ -115,6 +121,19 @@ class SpecDocModule:
 
         return template.render(self.__generate_doc_dict())
 
+    def generate_injected_yaml(self) -> str:
+        """Injects generated documentation into the original Ansible module"""
+        red = RedBaron(self._module_str)
+
+        doc_field = red.find('name', value='DOCUMENTATION')
+        if doc_field is None or doc_field.parent is None:
+            raise Exception('failed to inject documentation: '
+                            'an empty DOCUMENTATION field must be specified')
+
+        doc_field.parent.value.value = f'\'\'\'\n{self.generate_yaml()}\'\'\''
+
+        return red.dumps()
+
 
 def get_ansible_root(base_dir: str) -> Optional[str]:
     """Gets the Ansible root directory for correctly importing Ansible collections"""
@@ -151,10 +170,12 @@ def main():
 
     parser.add_argument('-i', '--input_file',
                         type=str, help='The module to generate documentation from.')
+
     parser.add_argument('-o', '--output_file',
                         type=str, help='The file to output the documentation to.')
     parser.add_argument('-f', '--output_format',
-                        type=str, default='yaml', choices=['yaml', 'json', 'jinja2'],
+                        type=str, default='yaml',
+                        choices=['yaml', 'yaml_injected', 'json', 'jinja2'],
                         help='The output format of the documentation.')
 
     parser.add_argument('-t', '--template_file',
@@ -194,6 +215,8 @@ def main():
     output = ''
     if args.output_format == 'yaml':
         output = mod.generate_yaml()
+    elif args.output_format == 'yaml_injected':
+        output = mod.generate_injected_yaml()
     elif args.output_format == 'json':
         output = mod.generate_json()
     elif args.output_format == 'jinja2':

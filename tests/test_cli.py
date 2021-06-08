@@ -83,3 +83,15 @@ class TestDocs(unittest.TestCase):
         output = module.generate_jinja2(template_str)
 
         assert 'really cool module name: module_1' in output
+
+    @staticmethod
+    def test_docs_file_injection():
+        """Test that documentation fields are injected correctly"""
+        module = SpecDocModule()
+
+        module.load_file(os.path.join(test_modules_dir, 'module_1.py'))
+
+        yaml_output = module.generate_yaml()
+        output = module.generate_injected_yaml()
+
+        assert f'DOCUMENTATION = \'\'\'\n{yaml_output}\'\'\'' in output
