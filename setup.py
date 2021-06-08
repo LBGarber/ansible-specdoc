@@ -2,7 +2,7 @@ import os
 import setuptools
 
 setuptools.setup(
-    name="ansible_specdoc",
+    name="ansible-specdoc",
     version="0.0.1",
     author="Lena Garber",
     author_email="lbgarber2@gmail.com",
@@ -13,11 +13,12 @@ setuptools.setup(
     packages=['ansible_specdoc'],
     install_requires=[
         'PyYAML==5.4.1',
-        'Jinja2==3.0.1'
+        'Jinja2==3.0.1',
+        'redbaron==0.9.2'
     ],
-    python_requires='>=3.6',
+    python_requires='>=3',
     long_description=open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
     entry_points={
-        'console_scripts': ['ansible_specdoc=ansible_specdoc.cli:main']
+        'console_scripts': ['ansible-specdoc=ansible_specdoc.cli:main']
     }
 )

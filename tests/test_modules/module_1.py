@@ -1,6 +1,8 @@
 """Module for testing docs generation functionality"""
 
-DOCUMENTATION = ''
+DOCUMENTATION = '''
+really cool non-empty docstring
+'''
 
 my_module_dict_spec = {
     'my-int': {
