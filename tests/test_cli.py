@@ -1,16 +1,20 @@
 """Module for testing various CLI functionalities"""
+
+# pylint: disable=protected-access
+
 import json
 import os
 import unittest
 from typing import Dict, Any, Optional
 
 import yaml
-from ansible_specdoc.cli import SpecDocModule
+from ansible_specdoc.cli import SpecDocModule, CLI
 from tests.test_modules import module_1
 
-test_modules_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_modules')
-test_files_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_files')
+TEST_MODULES_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_modules')
+TEST_FILES_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_files')
 
+MODULE_1_DIR = os.path.join(TEST_MODULES_DIR, 'module_1.py')
 
 class TestDocs(unittest.TestCase):
     """Docs generation tests"""
@@ -42,7 +46,7 @@ class TestDocs(unittest.TestCase):
         """Test that module names can be overridden"""
         module = SpecDocModule()
 
-        module.load_file(os.path.join(test_modules_dir, 'module_1.py'), 'really_cool_mod')
+        module.load_file(MODULE_1_DIR, 'really_cool_mod')
 
         assert yaml.safe_load(module.generate_yaml()).get('module') == 'really_cool_mod'
 
@@ -50,7 +54,7 @@ class TestDocs(unittest.TestCase):
         """Test that the YAML output is valid"""
         module = SpecDocModule()
 
-        module.load_file(os.path.join(test_modules_dir, 'module_1.py'))
+        module.load_file(MODULE_1_DIR)
 
         output_yaml = yaml.safe_load(module.generate_yaml())
 
@@ -62,7 +66,7 @@ class TestDocs(unittest.TestCase):
         """Test that the JSON output is valid"""
         module = SpecDocModule()
 
-        module.load_file(os.path.join(test_modules_dir, 'module_1.py'))
+        module.load_file(MODULE_1_DIR)
 
         output_json = json.loads(module.generate_json())
 
@@ -75,9 +79,9 @@ class TestDocs(unittest.TestCase):
         """Test that Jinja2 outputs are valid"""
         module = SpecDocModule()
 
-        module.load_file(os.path.join(test_modules_dir, 'module_1.py'))
+        module.load_file(MODULE_1_DIR)
 
-        with open(os.path.join(test_files_dir, 'template.j2'), 'r') as file:
+        with open(os.path.join(TEST_FILES_DIR, 'template.j2'), 'r') as file:
             template_str = file.read()
 
         output = module.generate_jinja2(template_str)
@@ -87,11 +91,17 @@ class TestDocs(unittest.TestCase):
     @staticmethod
     def test_docs_file_injection():
         """Test that documentation fields are injected correctly"""
+        module_path = MODULE_1_DIR
+
         module = SpecDocModule()
 
-        module.load_file(os.path.join(test_modules_dir, 'module_1.py'))
+        module.load_file(module_path)
 
         yaml_output = module.generate_yaml()
-        output = module.generate_injected_yaml()
+
+        with open(MODULE_1_DIR, 'r') as file:
+            module_contents = file.read()
+
+        output = CLI._inject_docs(module_contents, yaml_output)
 
         assert f'DOCUMENTATION = \'\'\'\n{yaml_output}\'\'\'' in output

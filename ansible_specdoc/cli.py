@@ -121,120 +121,167 @@ class SpecDocModule:
 
         return template.render(self.__generate_doc_dict())
 
-    def generate_injected_yaml(self) -> str:
-        """Injects generated documentation into the original Ansible module"""
-        red = RedBaron(self._module_str)
+
+class CLI:
+    """Class for handling all CLI functionality of ansible-specdoc"""
+
+    def __init__(self):
+        self._parser = argparse.ArgumentParser(
+            description='Generate Ansible Module documentation from spec.')
+
+        self._parser.add_argument('-s', '--stdin',
+                                  help='Read the module from stdin.', action='store_true')
+        self._parser.add_argument('-n', '--module-name',
+                                  type=str, help='The name of the module (required for stdin)')
+
+        self._parser.add_argument('-i', '--input_file',
+                                  type=str, help='The module to generate documentation from.')
+
+        self._parser.add_argument('-o', '--output_file',
+                                  type=str, help='The file to output the documentation to.')
+        self._parser.add_argument('-f', '--output_format',
+                                  type=str, default='yaml',
+                                  choices=['yaml', 'json', 'jinja2'],
+                                  help='The output format of the documentation.')
+
+        self._parser.add_argument('-j', '--inject',
+                                  help='Inject the output documentation into the `DOCUMENTATION` '
+                                       'field of input module.',
+                                  action='store_true')
+
+        self._parser.add_argument('-t', '--template_file',
+                                  type=str,
+                                  help='The file to use as the template for templated formats.')
+
+        self._args, _ = self._parser.parse_known_args()
+
+        self._mod = SpecDocModule()
+        self._output = ''
+
+    @staticmethod
+    def _inject_docs(module_content: str, docs_content: str) -> str:
+        """Injects docs_content into the DOCUMENTATION field of module_content"""
+
+        red = RedBaron(module_content)
 
         doc_field = red.find('name', value='DOCUMENTATION')
         if doc_field is None or doc_field.parent is None:
             raise Exception('failed to inject documentation: '
                             'an empty DOCUMENTATION field must be specified')
 
-        doc_field.parent.value.value = f'\'\'\'\n{self.generate_yaml()}\'\'\''
+        doc_field.parent.value.value = f'\'\'\'\n{docs_content}\'\'\''
 
         return red.dumps()
 
+    @staticmethod
+    def _get_ansible_root(base_dir: str) -> Optional[str]:
+        """Gets the Ansible root directory for correctly importing Ansible collections"""
 
-def get_ansible_root(base_dir: str) -> Optional[str]:
-    """Gets the Ansible root directory for correctly importing Ansible collections"""
+        path = pathlib.Path(base_dir)
 
-    path = pathlib.Path(base_dir)
+        # Ensure path is a directory
+        if not path.is_dir():
+            path = path.parent
 
-    # Ensure path is a directory
-    if not path.is_dir():
-        path = path.parent
+        # Check if ansible_collections is contained in base directory
+        if 'ansible_collections' in os.listdir(str(path)):
+            return str(path.absolute())
 
-    # Check if ansible_collections is contained in base directory
-    if 'ansible_collections' in os.listdir(str(path)):
-        return str(path.absolute())
+        # Check if base directory is a child of ansible_collections
+        while path.name != 'ansible_collections':
+            if path.name == '':
+                return None
 
-    # Check if base directory is a child of ansible_collections
-    while path.name != 'ansible_collections':
-        if path.name == '':
-            return None
+            path = path.parent
 
-        path = path.parent
+        return str(path.parent.absolute())
 
-    return str(path.parent.absolute())
+    def __add_ansible_collection_path(self):
+        target_path = os.getcwd()
+        if self._args.input_file is not None:
+            target_path = str(pathlib.Path(self._args.input_file).absolute())
+
+        ansible_root = self._get_ansible_root(target_path)
+
+        if ansible_root is None:
+            print('WARNING: The current directory is not at or '
+                  'below an Ansible collection: {...}/ansible_collections/{'
+                  'namespace}/{collection}/')
+            return
+
+        sys.path.append(ansible_root)
+
+    def _load_input_source(self):
+        if self._args.stdin:
+            if not self._args.module_name:
+                self._parser.error('Module name must be specified for stdin input')
+
+            self._mod.load_str('\n'.join(sys.stdin), self._args.module_name)
+            return
+
+        if self._args.input_file is not None:
+            self._mod.load_file(self._args.input_file, self._args.module_name)
+            return
+
+        self._parser.error('No input source specified')
+
+    def _process_docs(self):
+        if self._args.output_format == 'yaml':
+            self._output = self._mod.generate_yaml()
+            return
+
+        if self._args.output_format == 'json':
+            self._output = self._mod.generate_json()
+            return
+
+        if self._args.output_format == 'jinja2':
+            if not self._args.template_file:
+                self._parser.error('A template file must be specified for format Jinja2')
+
+            with open(self._args.template_file) as file:
+                template_str = file.read()
+
+            self._output = self._mod.generate_jinja2(template_str)
+            return
+
+        self._parser.error('Invalid format specified.')
+
+    def _try_inject_original_file(self):
+        if self._args.inject is None:
+            return
+
+        if self._args.output_format not in {'yaml'}:
+            self._parser.error(f'Format {self._args.output_format} is not supported for --inject.')
+
+        with open(self._args.input_file, 'r+') as file:
+            injected_module = self._inject_docs(file.read(), self._output)
+            file.seek(0)
+            file.write(injected_module)
+            file.truncate()
+
+    def _write_output(self):
+        # Write the output
+        if self._args.output_file is not None:
+            with open(self._args.output_file, 'w') as file:
+                file.write(self._output)
+        else:
+            sys.stdout.write(self._output)
+
+    def execute(self):
+        """Execute the CLI"""
+
+        self.__add_ansible_collection_path()
+        self._load_input_source()
+        self._process_docs()
+        self._try_inject_original_file()
+        self._write_output()
 
 
 def main():
     """Entrypoint for CLI"""
 
-    parser = argparse.ArgumentParser(description='Generate Ansible Module documentation from spec.')
-
-    parser.add_argument('-s', '--stdin',
-                        help='Read the module from stdin.', action='store_true')
-    parser.add_argument('-n', '--module-name',
-                        type=str, help='The name of the module (required for stdin)')
-
-    parser.add_argument('-i', '--input_file',
-                        type=str, help='The module to generate documentation from.')
-
-    parser.add_argument('-o', '--output_file',
-                        type=str, help='The file to output the documentation to.')
-    parser.add_argument('-f', '--output_format',
-                        type=str, default='yaml',
-                        choices=['yaml', 'yaml_injected', 'json', 'jinja2'],
-                        help='The output format of the documentation.')
-
-    parser.add_argument('-t', '--template_file',
-                        type=str,
-                        help='The file to use as the template for templated formats.')
-
-    args, _ = parser.parse_known_args()
-
-    mod = SpecDocModule()
-
-    # Add the Ansible collection directory to the path
-    target_path = os.getcwd()
-    if args.input_file is not None:
-        target_path = str(pathlib.Path(args.input_file).absolute())
-
-    ansible_root = get_ansible_root(target_path)
-
-    if ansible_root is not None:
-        sys.path.append(ansible_root)
-    else:
-        print('WARNING: The current directory is not at or '
-              'below an Ansible collection: {...}/ansible_collections/{'
-              'namespace}/{collection}/')
-
-    # Load the module
-    if args.stdin:
-        if not args.module_name:
-            parser.error('Module name must be specified for stdin input.')
-
-        mod.load_str('\n'.join(sys.stdin), args.module_name)
-    elif args.input_file is not None:
-        mod.load_file(args.input_file, args.module_name)
-    else:
-        parser.error('No input source specified.')
-
-    # Generate the output in the correct format
-    output = ''
-    if args.output_format == 'yaml':
-        output = mod.generate_yaml()
-    elif args.output_format == 'yaml_injected':
-        output = mod.generate_injected_yaml()
-    elif args.output_format == 'json':
-        output = mod.generate_json()
-    elif args.output_format == 'jinja2':
-        if not args.template_file:
-            parser.error('A template file must be specified for format Jinja2')
-
-        with open(args.template_file) as file:
-            template_str = file.read()
-
-        output = mod.generate_jinja2(template_str)
-    else:
-        parser.error('Invalid format specified.')
-
-    if args.output_file is not None:
-        with open(args.output_file, 'w') as file:
-            file.write(output)
-    else:
-        sys.stdout.write(output)
+    cli = CLI()
+    cli.execute()
 
 
 if __name__ == '__main__':

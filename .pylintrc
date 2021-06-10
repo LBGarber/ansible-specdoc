@@ -1,4 +1,4 @@
 [MASTER]
 
 [MESSAGES CONTROL]
-disable=exec-used, too-many-branches
+disable=exec-used, too-many-branches, too-few-public-methods
