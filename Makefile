@@ -4,4 +4,7 @@ test:
 lint:
 	pylint ./tests ./ansible_specdoc
 
-.PHONY: lint test
+build:
+	python -m build
+
+.PHONY: lint test build
