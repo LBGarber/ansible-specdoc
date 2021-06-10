@@ -3,7 +3,7 @@ import setuptools
 
 setuptools.setup(
     name="ansible-specdoc",
-    version="0.0.2",
+    version="0.0.3",
     author="Lena Garber",
     author_email="lbgarber2@gmail.com",
     description=("A simple tool for generating Ansible collection documentation from module spec."),
@@ -16,8 +16,10 @@ setuptools.setup(
         'Jinja2==3.0.1',
         'redbaron==0.9.2'
     ],
+    setup_requires=['setupext_janitor'],
     python_requires='>=3',
     entry_points={
-        'console_scripts': ['ansible-specdoc=ansible_specdoc.cli:main']
+        'console_scripts': ['ansible-specdoc=ansible_specdoc.cli:main'],
+        'distutils.commands': ['clean = setupext_janitor.janitor:CleanCommand']
     }
 )
