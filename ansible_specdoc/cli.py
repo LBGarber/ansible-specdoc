@@ -72,6 +72,9 @@ class SpecDocModule:
         result = {}
 
         for key, param in spec.items():
+            if param.get('doc_hide'):
+                continue
+
             param_dict = {
                 'type': param.get('type'),
                 'required': param.get('required') or False,
