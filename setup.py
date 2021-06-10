@@ -3,7 +3,7 @@ import setuptools
 
 setuptools.setup(
     name="ansible-specdoc",
-    version="0.0.3",
+    version="0.0.4",
     author="Lena Garber",
     author_email="lbgarber2@gmail.com",
     description=("A simple tool for generating Ansible collection documentation from module spec."),
