@@ -17,7 +17,6 @@ setuptools.setup(
         'redbaron==0.9.2'
     ],
     python_requires='>=3',
-    long_description=open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
     entry_points={
         'console_scripts': ['ansible-specdoc=ansible_specdoc.cli:main']
     }
