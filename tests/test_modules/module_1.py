@@ -16,6 +16,13 @@ my_module_dict_spec = {
             'A really cool bool that does stuff',
             'Here\'s another line :)'
         ]
+    },
+    'my-hidden-var': {
+        'type': 'bool',
+        'description': [
+            'dont show this!!!'
+        ],
+        'doc_hide': True
     }
 }
 

@@ -31,13 +31,17 @@ class TestDocs(unittest.TestCase):
             """Recursively assert that spec options match"""
 
             for key, value in yaml_spec.items():
+                # If item is rendered regardless of doc_hide
+                if module_spec.get(key).get('doc_hide'):
+                    raise Exception('item not hidden for doc_hide value')
+
                 assert value.get('type') == module_spec.get(key).get('type')
                 assert value.get('required') == (module_spec.get(key).get('required') or False)
                 assert value.get('description') == module_spec.get(key).get('description')
 
-                options: Optional[Dict[str, Any]] = value.get('options')
+                options: Optional[Dict[str, Any]] = value.get('suboptions')
                 if options is not None:
-                    assert_spec_recursive(options, module_spec.get('options'))
+                    assert_spec_recursive(options, module_spec.get(key).get('options'))
 
         assert_spec_recursive(new_spec.get('options'), original_spec.get('spec'))
 

@@ -1,5 +1,5 @@
 test:
-	pytest
+	pytest -s
 
 lint:
 	pylint ./tests ./ansible_specdoc
