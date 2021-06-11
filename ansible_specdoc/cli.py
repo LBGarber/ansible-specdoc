@@ -142,6 +142,7 @@ class CLI:
 
         self._parser.add_argument('-o', '--output_file',
                                   type=str, help='The file to output the documentation to.')
+
         self._parser.add_argument('-f', '--output_format',
                                   type=str, default='yaml',
                                   choices=['yaml', 'json', 'jinja2'],
@@ -250,7 +251,7 @@ class CLI:
         self._parser.error('Invalid format specified.')
 
     def _try_inject_original_file(self):
-        if self._args.inject is None:
+        if not self._args.inject:
             return
 
         if self._args.output_format not in {'yaml'}:
