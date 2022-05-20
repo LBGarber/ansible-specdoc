@@ -75,10 +75,12 @@ class SpecDocModule:
             if param.get('doc_hide'):
                 continue
 
+            desc = param.get('description') or []
+
             param_dict = {
                 'type': param.get('type'),
                 'required': param.get('required') or False,
-                'description': param.get('description') or []
+                'description': [desc] if isinstance(desc, str) else desc
             }
 
             if 'choices' in param:
@@ -98,12 +100,16 @@ class SpecDocModule:
         return result
 
     def __generate_doc_dict(self) -> Dict[str, Any]:
+        desc = self._metadata.get('description')
+
         return {
             'module': self._module_name,
-            'description': self._metadata.get('description'),
+            'description': [desc] if isinstance(desc, str) else desc,
             'requirements': self._metadata.get('requirements'),
             'author': self._metadata.get('author'),
-            'options': self.__spec_to_doc(self._metadata.get('spec'))
+            'options': self.__spec_to_doc(self._metadata.get('spec')),
+            'examples': self._metadata.get('examples') or [],
+            'return_values': self._metadata.get('return_values') or {},
         }
 
     def generate_yaml(self) -> str:
@@ -283,7 +289,6 @@ class CLI:
 
 def main():
     """Entrypoint for CLI"""
-
     cli = CLI()
     cli.execute()
 
