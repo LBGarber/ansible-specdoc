@@ -68,6 +68,11 @@ class SpecDocModule:
         self._metadata = getattr(self._module, SPECDOC_META_VAR)
 
     @staticmethod
+    def __format_json(data):
+        print(json.loads(data))
+        return json.dumps(data, sort_keys=True, indent=4, separators=(',', ': '))
+
+    @staticmethod
     def __spec_to_doc(spec: Dict[str, Dict]) -> Dict[str, Any]:
         result = {}
 
@@ -127,6 +132,7 @@ class SpecDocModule:
         )
 
         template = env.from_string(tmpl_str)
+        env.filters['format_json'] = self.__format_json
 
         return template.render(self.__generate_doc_dict())
 
