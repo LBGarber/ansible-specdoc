@@ -100,6 +100,9 @@ class SpecDocModule:
             if 'options' in param:
                 param_dict['suboptions'] = SpecDocModule.__spec_to_doc(param.get('options'))
 
+            if 'suboptions' in param:
+                param_dict['suboptions'] = SpecDocModule.__spec_to_doc(param.get('suboptions'))
+
             result[key] = param_dict
 
         return result
